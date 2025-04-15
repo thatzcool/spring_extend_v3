@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssg.spring.mappers.BoardMapper">
+
+    <sql id="search">
+        <if test="(types != null and keyword != null)">
+            <foreach collection="types" item="type" open=" and ( " separator="OR" close=")">
+                <choose>
+                    <when test='type.equals("T")'>
+                        title like concat('%',#{keyword},'%')
+                    </when>
+                    <when test='type.equals("C")'>
+                        content like concat('%',#{keyword},'%')
+                    </when>
+                    <when test='type.equals("W")'>
+                        writer like concat('%',#{keyword},'%')
+                    </when>
+                </choose>
+            </foreach>
+        </if>
+    </sql>
+    
+    <select id="getList" resultType="BoardVO">
+        select * from tbl_board where bno > 0 order by bno desc
+    </select>
+
+    <select id="getPage" resultType="BoardVO">
+        select * from
+          tbl_board
+        where bno > 0
+          <include refid="search"/>
+        order by bno desc
+        limit #{skip}, #{amount}
+    </select>
+
+    <select id="getTotal" resultType="int">
+        select count(bno)
+        from
+          tbl_board
+        where bno > 0
+        <include refid="search"/>
+    </select>
+
+    <insert id="insert">
+        <selectKey order="AFTER" keyProperty="bno" resultType="long">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+
+        insert into tbl_board (title, content, writer)
+        values (#{title},#{content},#{writer})
+    </insert>
+
+    <resultMap id="boardMap" type="BoardVO">
+        <id property="bno" column="bno"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="writer" column="writer"/>
+        <result property="regDate" column="regDate"/>
+        <result property="updateDate" column="updateDate"/>
+        <collection property="attachVOList" resultMap="attachMap"/>
+    </resultMap>
+
+    <resultMap id="attachMap" type="AttachVO">
+        <result property="ano" column="ano"/>
+        <result property="bno" column="bno"/>
+        <result property="uuid" column="uuid"/>
+        <result property="fileName" column="fileName"/>
+    </resultMap>
+
+    <select id="select" resultMap="boardMap">
+        select *
+        from
+          tbl_board b left outer join
+          tbl_attach ta on b.bno = ta.bno
+        where
+          b.bno = #{bno}
+    </select>
+
+    <update id="update">
+        update tbl_board
+        set
+            title = #{title},
+            content = #{content},
+            delflag = #{delFlag},
+            updateDate = now()
+        where
+            bno = #{bno}
+    </update>
+
+    <insert id="insertAttach">
+        insert into tbl_attach (bno, uuid, filename)
+        values (#{bno}, #{uuid}, #{fileName})
+    </insert>
+
+    <delete id="deleteAttachFiles">
+
+        delete from tbl_attach
+        <where>
+            <foreach collection="anos" item="ano" open="ano in (" close=")" separator=",">
+                #{ano}
+            </foreach>
+        </where>
+
+    </delete>
+
+</mapper>
